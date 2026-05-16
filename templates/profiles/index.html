@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ profile.title }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body {
+            /* Agar admin fon rasmi yuklagan bo'lsa o'shani qo'yadi, yo'qsa premium qora-to'q rang */
+            background: {% if profile.background_image %} url("{{ profile.background_image.url }}") {% else %} #0d0e12 {% endif %} no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .logo-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 96px;
+            height: 96px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .title { 
+            font-size: 22px; 
+            font-weight: 700; 
+            letter-spacing: 0.5px; 
+            margin-bottom: 8px; 
+            text-transform: uppercase;
+        }
+        
+        .desc { 
+            font-size: 14px; 
+            opacity: 0.75; 
+            margin-bottom: 35px; 
+            line-height: 1.5; 
+            padding: 0 10px;
+        }
+
+        /* Glassmorphism tugmalar uslubi */
+        .link-card {
+            display: flex;
+            align-items: center;
+            /* Admin kiritgan rang, kiritmagan bo'lsa default tillarang xira effekt */
+            background: {{ profile.theme_color|default:"rgba(143, 113, 56, 0.6)" }}; 
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .link-card:hover {
+            transform: translateY(-3px);
+            background: rgba(143, 113, 56, 0.75);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+        }
+
+        .icon-box { 
+            font-size: 24px; 
+            margin-right: 18px; 
+            width: 35px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .text-box { text-align: left; flex-grow: 1; }
+        .link-title { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; }
+        .link-subtitle { font-size: 12px; opacity: 0.7; margin-top: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        {% if profile %}
+            <div class="logo-wrapper">
+                {% if profile.logo %}
+                    <img src="{{ profile.logo.url }}" alt="Logo" class="logo">
+                {% else %}
+                    <img src="https://ui-avatars.com/api/?name={{ profile.title }}&background=8f7138&color=fff" alt="Logo" class="logo">
+                {% endif %}
+            </div>
+            <h1 class="title">{{ profile.title }}</h1>
+            <p class="desc">{{ profile.description }}</p>
+        {% endif %}
+
+        {% for link in links %}
+            <a href="{% url 'link_click' link.id %}" target="_blank" class="link-card">
+                <div class="icon-box">
+                    {% if link.icon_type == 'phone' %}<i class="bi bi-telephone-fill"></i>
+                    {% elif link.icon_type == 'telegram' %}<i class="bi bi-telegram"></i>
+                    {% elif link.icon_type == 'youtube' %}<i class="bi bi-youtube"></i>
+                    {% elif link.icon_type == 'instagram' %}<i class="bi bi-instagram"></i>
+                    {% else %}<i class="bi bi-globe"></i>{% endif %}
+                </div>
+                <div class="text-box">
+                    <div class="link-title">{{ link.title }}</div>
+                    {% if link.subtitle %}
+                        <div class="link-subtitle">{{ link.subtitle }}</div>
+                    {% endif %}
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+
+</body>
+</html>
