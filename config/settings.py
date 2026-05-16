@@ -171,3 +171,16 @@ UNFOLD_ADMIN_SETTINGS = {
         },
     },
 }
+
+
+
+import os
+
+
+STATIC_URL = '/static/'
+
+# ENGMUHIM QATOR: Django statik fayllarni shu papkaga yig'adi
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
