@@ -3,18 +3,22 @@ from profiles.models import Profile
 
 class Link(models.Model):
     ICON_CHOICES = [
-        ('phone', 'Call Center'),
+        ('phone', 'Telefon'),
         ('telegram', 'Telegram'),
-        ('youtube', 'YouTube'),
         ('instagram', 'Instagram'),
-        ('globe', 'Veb-sayt'),
+        ('youtube', 'YouTube'),
+        ('pubg', 'PUBG Mobile ID'),
+        ('mlbb', 'Mobile Legends'),
+        ('beelink', 'Beelink'),
+        ('globe', 'Boshqa sayt'),
     ]
+
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='links')
-    title = models.CharField(max_length=100, help_text="Tugma matni")
-    subtitle = models.CharField(max_length=150, blank=True, null=True, help_text="Ostki matn")
-    url = models.URLField(help_text="O'tish havolasi")
+    title = models.CharField(max_length=100)
+    subtitle = models.CharField(max_length=150, blank=True, null=True, help_text="Masalan: Nickname yoki o'yin ID raqami")
+    url = models.URLField(blank=True, null=True, help_text="O'yin tugmalari uchun bo'sh qoldirsa ham bo'ladi")
     icon_type = models.CharField(max_length=20, choices=ICON_CHOICES, default='globe')
-    order = models.PositiveIntegerField(default=0, help_text="Tartib raqami")
+    order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
     class Meta:

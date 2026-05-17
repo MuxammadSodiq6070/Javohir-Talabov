@@ -1,11 +1,15 @@
 from django.db import models
-from links.models import Link
+from profiles.models import Profile
 
-class LinkClick(models.Model):  # <-- Mana shu klass nomi aniq LinkClick bo'lishi kerak
-    link = models.ForeignKey(Link, on_delete=models.CASCADE, related_name='clicks')
-    clicked_at = models.DateTimeField(auto_now_add=True)
-    ip_address = models.GenericIPAddressField(blank=True, null=True)
-    user_agent = models.TextField(blank=True, null=True)
+class VisitorAnalytics(models.Model):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='analytics')
+    app_source = models.CharField(max_length=50, default="Brauzer") # Telegram, Instagram, Chrome
+    visited_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.link.title} - {self.clicked_at}"
+        return f"{self.profile.title} - Tashrif ({self.app_source})"
+
+class LinkClickAnalytics(models.Model):
+    # Qaysi tugma necha marta bosilganini sanash uchun
+    link_id = models.IntegerField()
+    clicked_at = models.DateTimeField(auto_now_add=True)
