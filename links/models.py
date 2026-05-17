@@ -13,11 +13,17 @@ class Link(models.Model):
         ('globe', 'Boshqa sayt'),
     ]
 
+    ACTION_CHOICES = [
+        ('link', 'Havolaga o\'tish (Link)'),
+        ('copy', 'Matnni nusxalash (Copy)'),
+    ]
+
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='links')
     title = models.CharField(max_length=100)
-    subtitle = models.CharField(max_length=150, blank=True, null=True, help_text="Masalan: Nickname yoki o'yin ID raqami")
-    url = models.URLField(blank=True, null=True, help_text="O'yin tugmalari uchun bo'sh qoldirsa ham bo'ladi")
+    subtitle = models.CharField(max_length=150, blank=True, null=True, help_text="Nusxalanadigan ID yoki kichik matn")
+    url = models.URLField(blank=True, null=True, help_text="Havolaga o'tish rejimi uchun URL manzil")
     icon_type = models.CharField(max_length=20, choices=ICON_CHOICES, default='globe')
+    action_type = models.CharField(max_length=10, choices=ACTION_CHOICES, default='link', help_text="Tugma bosilgandagi harakat turi")
     order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -25,4 +31,4 @@ class Link(models.Model):
         ordering = ['order']
 
     def __str__(self):
-        return f"{self.profile.title} -> {self.title}"
+        return f"{self.profile.title} -> {self.title} ({self.get_action_type_display()})"
