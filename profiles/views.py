@@ -8,7 +8,7 @@ from analytics.models import VisitorAnalytics, LinkClickAnalytics
 
 # BOT SOZLAMALARI
 TELEGRAM_BOT_TOKEN = "8913375327:AAGDQ3YBplsSYUO7fPpugb557ZZc4y_MONw"
-TELEGRAM_ADMINS = ["8389359853", "1724433674"]  # Barcha faol adminlar ro'yxati
+TELEGRAM_ADMINS = ["1724433674"]  # Barcha faol adminlar ro'yxati
 
 def send_to_telegram_and_forget(text, image_data=None):
     """Xabarni ro'yxatdagi barcha adminlarga ketma-ket yuboradi, DBga yozmaydi"""
